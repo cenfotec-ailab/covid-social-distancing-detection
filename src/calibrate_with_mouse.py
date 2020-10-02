@@ -26,7 +26,7 @@ while True:
     # Load the frame and test if it has reache the end of the video
     (frame_exists, frame) = vs.read()
     frame = imutils.resize(frame, width=int(size_frame))
-    cv2.imwrite("../img/static_frame_from_video.jpg",frame)
+    cv2.imwrite("../img/static_frame_from_video.png",frame, [cv2.IMWRITE_PNG_COMPRESSION, 9])
     break
 
 # Create a black image and a window
@@ -35,8 +35,8 @@ cv2.namedWindow(windowName)
 
 
 # Load the image 
-img_path = "../img/static_frame_from_video.jpg"
-img = cv2.imread(img_path)
+img_path = "../img/static_frame_from_video.png"
+img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
 
 # Get the size of the image for the calibration
 width,height,_ = img.shape

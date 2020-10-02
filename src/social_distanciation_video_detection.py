@@ -14,9 +14,43 @@ import os
 COLOR_RED = (0, 0, 255)
 COLOR_GREEN = (0, 255, 0)
 COLOR_BLUE = (255, 0, 0)
-BIG_CIRCLE = 60
-SMALL_CIRCLE = 3
+BIG_CIRCLE = 30
+SMALL_CIRCLE = 7
 
+
+def overlay_transparent(background, overlay, x, y):
+
+    background_width = background.shape[1]
+    background_height = background.shape[0]
+
+    if x >= background_width or y >= background_height:
+        return background
+
+    h, w = overlay.shape[0], overlay.shape[1]
+
+    if x + w > background_width:
+        w = background_width - x
+        overlay = overlay[:, :w]
+
+    if y + h > background_height:
+        h = background_height - y
+        overlay = overlay[:h]
+
+    if overlay.shape[2] < 4:
+        overlay = np.concatenate(
+            [
+                overlay,
+                np.ones((overlay.shape[0], overlay.shape[1], 1), dtype = overlay.dtype) * 255
+            ],
+            axis = 2,
+        )
+
+    overlay_image = overlay[..., :3]
+    mask = overlay[..., 3:] / 255.0
+
+    background[y:y+h, x:x+w] = (1.0 - mask) * background[y:y+h, x:x+w] + mask * overlay_image
+
+    return background
 
 def get_human_box_detection(boxes,scores,classes,height,width):
 	""" 
@@ -153,8 +187,7 @@ height,width,_ = imgOutput.shape
 blank_image = np.zeros((height,width,3), np.uint8)
 height = blank_image.shape[0]
 width = blank_image.shape[1] 
-dim = (width, height)
-
+dim = (height, width)
 
 
 
@@ -166,11 +199,15 @@ dim = (width, height)
 vs = cv2.VideoCapture(video_path)
 output_video_1,output_video_2 = None,None
 # Loop until the end of the video stream
+
+# load the bird view image template
+# Load the image of the ground and resize it to the correct size
+img = cv2.imread("../img/static_frame_from_video.png", cv2.IMREAD_UNCHANGED)
+bird_view_img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+circ = cv2.imread("../img/circle.png", cv2.IMREAD_UNCHANGED)
+#circ = imutils.resize(circ, width=int(32), height=int(32))
+
 while True:	
-	# Load the image of the ground and resize it to the correct size
-	img = cv2.imread("../img/chemin_1.png")
-	bird_view_img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
-	
 	# Load the frame
 	(frame_exists, frame) = vs.read()
 	# Test if it has reached the end of the video
@@ -190,13 +227,8 @@ while True:
 		array_centroids,array_groundpoints = get_centroids_and_groundpoints(array_boxes_detected)
 
 		# Use the transform matrix to get the transformed coordonates
-		transformed_downoids = compute_point_perspective_transformation(matrix,array_groundpoints)
-		
-		# Show every point on the top view image 
-		for point in transformed_downoids:
-			x,y = point
-			cv2.circle(bird_view_img, (x,y), BIG_CIRCLE, COLOR_GREEN, 2)
-			cv2.circle(bird_view_img, (x,y), SMALL_CIRCLE, COLOR_GREEN, -1)
+		transformed_downoids = array_groundpoints
+		# transformed_downoids = compute_point_perspective_transformation(matrix,array_groundpoints)
 
 		# Check if 2 or more people have been detected (otherwise no need to detect)
 		if len(transformed_downoids) >= 2:
@@ -211,13 +243,21 @@ while True:
 				if math.sqrt( (pair[0][0] - pair[1][0])**2 + (pair[0][1] - pair[1][1])**2 ) < int(distance_minimum):
 					# Change the colors of the points that are too close from each other to red
 					if not (pair[0][0] > width or pair[0][0] < 0 or pair[0][1] > height+200  or pair[0][1] < 0 or pair[1][0] > width or pair[1][0] < 0 or pair[1][1] > height+200  or pair[1][1] < 0):
-						change_color_on_topview(pair)
+						#change_color_on_topview(pair)
 						# Get the equivalent indexes of these points in the original frame and change the color to red
 						index_pt1 = list_indexes[i][0]
 						index_pt2 = list_indexes[i][1]
 						cv2.rectangle(frame,(array_boxes_detected[index_pt1][1],array_boxes_detected[index_pt1][0]),(array_boxes_detected[index_pt1][3],array_boxes_detected[index_pt1][2]),COLOR_RED,2)
 						cv2.rectangle(frame,(array_boxes_detected[index_pt2][1],array_boxes_detected[index_pt2][0]),(array_boxes_detected[index_pt2][3],array_boxes_detected[index_pt2][2]),COLOR_RED,2)
-
+						
+						# draws circle in the middle of each recangle 
+						x_ = (array_boxes_detected[index_pt1][1] + array_boxes_detected[index_pt1][3])//2
+						y_ = (array_boxes_detected[index_pt1][0] + array_boxes_detected[index_pt2][2])//2
+						#y_ = y_ + 10
+						alpha = 0.5
+						beta = (1.0 - alpha)
+						bird_view_img = overlay_transparent(bird_view_img,circ,x_,y_)
+						#bird_view_img[y_:y_+circ.shape[0], x_:x_+circ.shape[1],:] = circ
 
 	# Draw the green rectangle to delimitate the detection zone
 	draw_rectangle(corner_points)
