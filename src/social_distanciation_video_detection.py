@@ -253,17 +253,15 @@ while True:
 						# draws circle in the middle of each recangle 
 						x_ = (array_boxes_detected[index_pt1][1] + array_boxes_detected[index_pt1][3])//2
 						y_ = (array_boxes_detected[index_pt1][0] + array_boxes_detected[index_pt2][2])//2
-						#y_ = y_ + 10
 						alpha = 0.5
 						beta = (1.0 - alpha)
 						bird_view_img = overlay_transparent(bird_view_img,circ,x_,y_)
-						#bird_view_img[y_:y_+circ.shape[0], x_:x_+circ.shape[1],:] = circ
 
 	# Draw the green rectangle to delimitate the detection zone
 	draw_rectangle(corner_points)
 	# Show both images	
-	cv2.imshow("Bird view", bird_view_img)
-	cv2.imshow("Original picture", frame)
+	cv2.imshow("Zona de Riesgo", bird_view_img)
+	cv2.imshow("Imagen Original", frame)
 
 
 	key = cv2.waitKey(1) & 0xFF
@@ -281,3 +279,6 @@ while True:
 	# Break the loop
 	if key == ord("q"):
 		break
+
+# save generated heatmap to output folder
+cv2.imwrite('../output/heatmap.png', bird_view_img,  [cv2.IMWRITE_PNG_COMPRESSION, 9])
